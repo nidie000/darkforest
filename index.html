@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>黑暗森林大逃杀</title>
+<style>
+/* ===== 重置与基础 ===== */
+*{margin:0;padding:0;box-sizing:border-box}
+::root{
+  --bg:#050510; --panel:rgba(15,15,35,0.85); --border:rgba(100,100,200,0.25);
+  --text:#c8c8e0; --text-dim:#666688; --gold:#ffd700; --red:#ff4466;
+  --blue:#4488ff; --purple:#9966cc; --orange:#ff8833; --green:#44ff88;
+  --cyan:#44ddff;
+}
+body{
+  background:
+    radial-gradient(ellipse at 15% 50%,rgba(60,20,100,0.12) 0%,transparent 50%),
+    radial-gradient(ellipse at 85% 30%,rgba(20,60,120,0.10) 0%,transparent 50%),
+    radial-gradient(ellipse at 50% 80%,rgba(100,20,60,0.08) 0%,transparent 50%),
+    var(--bg);
+  color:var(--text); font-family:'Segoe UI',system-ui,sans-serif;
+  overflow:hidden;height:100vh;width:100vw;
+}
+#starfield{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.star{position:absolute;width:2px;height:2px;background:#fff;border-radius:50%;animation:twinkle 3s infinite ease-in-out}
+@keyframes twinkle{0%,100%{opacity:0.2}50%{opacity:0.9}}
+
+/* ===== 通用 ===== */
+.screen{position:relative;z-index:1;width:100%;height:100%;display:none}
+.screen.active{display:flex}
+.glow{text-shadow:0 0 10px currentColor,0 0 20px currentColor}
+.btn{
+  background:linear-gradient(135deg,rgba(100,80,200,0.3),rgba(60,40,120,0.3));
+  border:1px solid var(--border);color:var(--text);padding:12px 32px;
+  border-radius:6px;cursor:pointer;font-size:16px;transition:all 0.2s;
+  letter-spacing:1px;
+}
+.btn:hover{background:linear-gradient(135deg,rgba(120,100,220,0.5),rgba(80,60,140,0.5));border-color:var(--purple);box-shadow:0 0 15px rgba(150,100,200,0.4)}
+.btn:active{transform:scale(0.97)}
+.btn-gold{border-color:rgba(255,215,0,0.5);color:var(--gold)}
+.btn-gold:hover{box-shadow:0 0 20px rgba(255,215,0,0.4);border-color:var(--gold)}
+.btn-danger{border-color:rgba(255,68,102,0.4);color:var(--red)}
+.btn-small{padding:6px 16px;font-size:13px}
+
+/* ===== 开始界面 ===== */
+#startScreen{flex-direction:column;align-items:center;justify-content:center}
+#startScreen h1{font-size:48px;color:var(--gold);letter-spacing:6px;margin-bottom:8px;animation:titleGlow 3s infinite ease-in-out}
+@keyframes titleGlow{0%,100%{text-shadow:0 0 15px rgba(255,215,0,0.5),0 0 30px rgba(255,215,0,0.3)}50%{text-shadow:0 0 25px rgba(255,215,0,0.8),0 0 50px rgba(255,215,0,0.5)}}
+#startScreen .subtitle{color:var(--text-dim);font-size:15px;margin-bottom:40px;letter-spacing:2px}
+.player-select{text-align:center;margin-bottom:30px}
+.player-select label{display:block;margin-bottom:12px;color:var(--cyan);font-size:15px}
+.player-btns{display:flex;gap:12px;justify-content:center}
+.player-btn{
+  width:60px;height:60px;border-radius:50%;border:2px solid var(--border);
+  background:var(--panel);color:var(--text);font-size:22px;cursor:pointer;
+  transition:all 0.2s;display:flex;align-items:center;justify-content:center;
+}
+.player-btn:hover{border-color:var(--cyan)}
+.player-btn.selected{border-color:var(--gold);color:var(--gold);box-shadow:0 0 15px rgba(255,215,0,0.4)}
+.help-text{max-width:500px;margin:20px auto;font-size:13px;color:var(--text-dim);line-height:1.8;text-align:left;padding:16px;border:1px solid var(--border);border-radius:8px;background:rgba(10,10,25,0.5)}
+.help-text h3{color:var(--cyan);margin-bottom:8px;font-size:14px}
+.help-text p{margin-bottom:4px}
+
+/* ===== 游戏界面 ===== */
+#gameScreen{flex-direction:column}
+.game-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 20px;background:var(--panel);border-bottom:1px solid var(--border);
+  height:50px;flex-shrink:0;
+}
+.game-header .title{color:var(--gold);font-size:18px;letter-spacing:3px}
+.header-stats{display:flex;gap:24px;font-size:14px}
+.header-stat{display:flex;align-items:center;gap:6px}
+.header-stat .label{color:var(--text-dim)}
+.header-stat .value{font-weight:bold}
+.header-stat .value.gold{color:var(--gold)}
+.header-stat .value.red{color:var(--red)}
+.header-stat .value.green{color:var(--green)}
+.speed-control{display:flex;gap:4px}
+.speed-btn{padding:4px 12px;font-size:12px;border:1px solid var(--border);background:transparent;color:var(--text-dim);cursor:pointer;border-radius:4px;transition:all 0.2s}
+.speed-btn.active{color:var(--cyan);border-color:var(--cyan);background:rgba(68,221,255,0.1)}
+.speed-btn:hover{color:var(--cyan)}
+
+.main-content{display:grid;grid-template-columns:260px 1fr 320px;flex:1;overflow:hidden;gap:1px;background:var(--border)}
+.panel{background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+
+/* 左侧：玩家面板 */
+#statsPanel{padding:16px}
+#statsPanel h2{color:var(--cyan);font-size:14px;margin-bottom:12px;letter-spacing:2px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.civ-card{background:rgba(20,20,40,0.6);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px}
+.civ-card .civ-name{color:var(--gold);font-size:16px;font-weight:bold;margin-bottom:10px}
+.stat-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:13px}
+.stat-row .stat-label{color:var(--text-dim)}
+.stat-row .stat-value{font-weight:bold;font-family:'Consolas',monospace}
+.stat-bar{width:100%;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;margin-top:2px}
+.stat-bar-fill{height:100%;border-radius:3px;transition:width 0.5s}
+.stat-bar-fill.green{background:linear-gradient(90deg,#2a8a4a,#44ff88)}
+.stat-bar-fill.yellow{background:linear-gradient(90deg,#8a8a2a,#ffff44)}
+.stat-bar-fill.red{background:linear-gradient(90deg,#8a2a2a,#ff4444)}
+.stat-bar-fill.gold{background:linear-gradient(90deg,#8a6a00,#ffd700)}
+.stat-bar-fill.purple{background:linear-gradient(90deg,#4a2a6a,#9966cc)}
+.divider{height:1px;background:var(--border);margin:12px 0}
+.scan-info{font-size:12px;color:var(--text-dim);line-height:1.6}
+.scan-info .node-info{padding:4px 8px;margin:3px 0;border-radius:4px;background:rgba(255,255,255,0.03);border-left:3px solid var(--blue)}
+.scan-info .node-info.occupied{border-left-color:var(--red)}
+.scan-info .node-info.abyss{border-left-color:var(--purple)}
+.scan-info .node-info.battlefield{border-left-color:var(--orange)}
+
+/* 中间：网络可视化 */
+#networkArea{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center}
+#networkCanvas{cursor:pointer;border-radius:8px}
+.step-indicator{position:absolute;top:16px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--border);padding:6px 16px;border-radius:20px;font-size:13px;color:var(--cyan);z-index:5}
+.processing-overlay{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:5}
+.processing-overlay .text{color:var(--text-dim);font-size:16px;margin-bottom:12px}
+.processing-overlay .sub{color:var(--text-dim);font-size:12px;margin-top:8px}
+.progress-bar{width:200px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;margin:0 auto}
+.progress-fill{height:100%;background:var(--cyan);transition:width 0.3s;width:0%}
+.abyss-panel{text-align:center;padding:20px}
+.abyss-panel h3{color:var(--purple);font-size:18px;margin-bottom:12px}
+.abyss-panel p{color:var(--text-dim);font-size:13px;margin-bottom:16px}
+.abyss-input{display:flex;gap:8px;justify-content:center;margin-bottom:12px}
+.abyss-input input{width:120px;padding:8px;background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:16px;text-align:center}
+.abyss-destinations{max-height:200px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:400px}
+.dest-chip{padding:4px 10px;border:1px solid var(--border);border-radius:12px;font-size:12px;cursor:pointer;transition:all 0.2s;background:rgba(20,20,40,0.5)}
+.dest-chip:hover{border-color:var(--cyan);color:var(--cyan)}
+.dest-chip.occupied{border-color:rgba(255,68,102,0.4);color:var(--red)}
+.dest-chip.abyss{border-color:var(--purple);color:var(--purple)}
+.dest-chip.battlefield{border-color:var(--orange);color:var(--orange)}
+
+/* 右侧：事件日志 */
+#logPanel{display:flex;flex-direction:column}
+#logPanel h2{color:var(--cyan);font-size:14px;padding:12px 16px;letter-spacing:2px;border-bottom:1px solid var(--border);flex-shrink:0}
+.log-filter{display:flex;gap:4px;padding:8px 16px;flex-shrink:0}
+.log-filter-btn{padding:3px 10px;font-size:11px;border:1px solid var(--border);background:transparent;color:var(--text-dim);cursor:pointer;border-radius:3px;transition:all 0.2s}
+.log-filter-btn.active{color:var(--cyan);border-color:var(--cyan)}
+#gameLog{flex:1;overflow-y:auto;padding:8px 16px;font-family:'Consolas','Courier New',monospace;font-size:12px;line-height:1.6}
+#gameLog::-webkit-scrollbar{width:6px}
+#gameLog::-webkit-scrollbar-track{background:rgba(255,255,255,0.05)}
+#gameLog::-webkit-scrollbar-thumb{background:rgba(100,100,200,0.3);border-radius:3px}
+.log-entry{padding:2px 0;animation:logFadeIn 0.3s ease-out}
+@keyframes logFadeIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
+.log-entry.info{color:var(--text)}
+.log-entry.round{color:var(--gold);font-weight:bold;margin-top:8px;border-bottom:1px solid rgba(255,215,0,0.2);padding-bottom:4px}
+.log-entry.player{color:var(--cyan)}
+.log-entry.battle{color:var(--orange)}
+.log-entry.death{color:var(--red)}
+.log-entry.god{color:#fff;text-shadow:0 0 8px rgba(255,255,255,0.8);font-weight:bold}
+.log-entry.system{color:var(--purple)}
+.log-entry.victory{color:var(--green)}
+.log-entry.hidden{display:none}
+
+/* ===== 结束界面 ===== */
+#endScreen{flex-direction:column;align-items:center;justify-content:center;overflow-y:auto;padding:40px}
+#endScreen h1{font-size:42px;margin-bottom:30px;letter-spacing:4px}
+#endScreen h1.victory{color:var(--gold);text-shadow:0 0 20px rgba(255,215,0,0.5)}
+#endScreen h1.defeat{color:var(--red);text-shadow:0 0 20px rgba(255,68,102,0.5)}
+.end-section{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:16px 24px;margin-bottom:16px;max-width:600px;width:100%}
+.end-section h3{color:var(--cyan);font-size:14px;margin-bottom:10px;letter-spacing:1px}
+.end-section .content{font-size:14px;line-height:1.8;color:var(--text)}
+.end-section .content .civ-item{display:inline-block;margin:2px 8px;padding:2px 10px;background:rgba(255,255,255,0.05);border-radius:4px;font-family:'Consolas',monospace}
+.end-section .content .god-item{color:var(--gold);font-weight:bold}
+
+/* ===== 弹窗 ===== */
+#modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:100}
+#modal.active{display:flex}
+.modal-content{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:30px 40px;text-align:center;max-width:400px;box-shadow:0 0 30px rgba(100,100,200,0.2)}
+.modal-content h2{color:var(--gold);margin-bottom:12px;font-size:20px}
+.modal-content p{color:var(--text);margin-bottom:24px;font-size:15px}
+.modal-btns{display:flex;gap:12px;justify-content:center}
+
+/* ===== 响应式 ===== */
+@media(max-width:1024px){
+  .main-content{grid-template-columns:200px 1fr 260px}
+}
+@media(max-width:768px){
+  .main-content{grid-template-columns:1fr;grid-template-rows:auto 1fr auto}
+  #statsPanel{max-height:150px;overflow-y:auto}
+  #logPanel{max-height:150px}
+  #startScreen h1{font-size:32px}
+}
+</style>
+</head>
+<body>
+<div id="starfield"></div>
+
+<!-- ===== 开始界面 ===== -->
+<div id="startScreen" class="screen active">
+  <h1 class="glow">黑暗森林大逃杀</h1>
+  <p class="subtitle">在 600 个文明的宇宙中生存到最后</p>
+  <div class="player-select">
+    <label>选择游玩人数</label>
+    <div class="player-btns" id="playerBtns">
+      <button class="player-btn selected" data-players="1">1</button>
+      <button class="player-btn" data-players="2">2</button>
+      <button class="player-btn" data-players="3">3</button>
+      <button class="player-btn" data-players="4">4</button>
+    </div>
+  </div>
+  <button class="btn btn-gold" id="startBtn" style="font-size:18px;padding:14px 48px">进入宇宙</button>
+  <div class="help-text">
+    <h3>📜 游戏说明</h3>
+    <p>• 你将控制宇宙中的一个文明，在 600 个文明的混战中生存</p>
+    <p>• 游戏共 10 回合，每回合文明在宇宙网络中移动并交战</p>
+    <p>• 每回合可移动的步数 = 文明等级，等级越高行动越远</p>
+    <p>• <span style="color:var(--purple)">节点0</span> 是「宇宙深渊」，可传送至任意节点并获得随机机缘</p>
+    <p>• <span style="color:var(--red)">⚠ 你只能探测到等级低于自己的文明，更强的文明对你不可见！</span></p>
+    <p>• 当两文明相遇且等级差＜3 时触发战斗，高等级占优</p>
+    <p>• 科技达到 2.3 时升级，11 级文明有概率飞升为<span style="color:var(--gold)">神明</span></p>
+    <p>• 存活到最后或成为神明即为胜利</p>
+  </div>
+</div>
+
+<!-- ===== 游戏界面 ===== -->
+<div id="gameScreen" class="screen">
+  <div class="game-header">
+    <span class="title glow">黑暗森林大逃杀</span>
+    <div class="header-stats">
+      <div class="header-stat"><span class="label">回合</span><span class="value gold" id="roundDisplay">1/10</span></div>
+      <div class="header-stat"><span class="label">存活文明</span><span class="value green" id="civCountDisplay">600</span></div>
+      <div class="header-stat"><span class="label">玩家存活</span><span class="value gold" id="playerCountDisplay">1/1</span></div>
+    </div>
+    <div class="speed-control">
+      <button class="speed-btn" data-speed="slow">慢速</button>
+      <button class="speed-btn active" data-speed="normal">正常</button>
+      <button class="speed-btn" data-speed="fast">快速</button>
+      <button class="speed-btn" data-speed="instant">瞬间</button>
+    </div>
+  </div>
+  <div class="main-content">
+    <!-- 左侧：玩家状态 -->
+    <div class="panel" id="statsPanel">
+      <h2>文明状态</h2>
+      <div id="statsContent">
+        <p style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px 0">等待游戏开始...</p>
+      </div>
+    </div>
+    <!-- 中间：网络可视化 -->
+    <div class="panel" id="networkArea">
+      <div class="step-indicator" id="stepIndicator" style="display:none">步骤 1/1</div>
+      <canvas id="networkCanvas" width="520" height="440"></canvas>
+      <div class="processing-overlay" id="processingOverlay" style="display:none">
+        <div class="text">🌌 宇宙演化中...</div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="sub" id="processingSub">处理其他文明</div>
+      </div>
+      <div class="abyss-panel" id="abyssPanel" style="display:none">
+        <h3 class="glow" style="color:var(--purple)">宇宙深渊</h3>
+        <p>深渊连接万界，你可以传送至任意节点</p>
+        <div class="abyss-input">
+          <input type="number" id="abyssInput" min="0" placeholder="节点编号" />
+          <button class="btn btn-small" id="abyssConfirmBtn">传送</button>
+        </div>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:8px">或从以下节点中选择：</p>
+        <div class="abyss-destinations" id="abyssDestinations"></div>
+      </div>
+    </div>
+    <!-- 右侧：事件日志 -->
+    <div class="panel" id="logPanel">
+      <h2>事件日志</h2>
+      <div class="log-filter">
+        <button class="log-filter-btn active" data-filter="all">全部</button>
+        <button class="log-filter-btn" data-filter="player">玩家</button>
+        <button class="log-filter-btn" data-filter="battle">战斗</button>
+      </div>
+      <div id="gameLog"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 结束界面 ===== -->
+<div id="endScreen" class="screen">
+  <h1 id="endTitle">游戏结束</h1>
+  <div id="endResults"></div>
+  <button class="btn btn-gold" id="restartBtn" style="margin-top:20px;font-size:16px;padding:12px 40px">再玩一次</button>
+</div>
+
+<!-- ===== 弹窗 ===== -->
+<div id="modal">
+  <div class="modal-content">
+    <h2>【最后通牒】</h2>
+    <p>你准备好了吗？</p>
+    <div class="modal-btns">
+      <button class="btn btn-gold" id="modalOkBtn">准备好了</button>
+      <button class="btn btn-danger" id="modalCancelBtn">退出</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ================================================================
+//  黑暗森林大逃杀 — 严格对照 C++ 源码的 JavaScript 移植版
+//  关键规则：玩家只能发现等级低于自己的文明（黑暗森林法则）
+//  C++ 源码行号标注在各函数注释中
+// ================================================================
+
+// ================================================================
+//  数据结构定义
+// ================================================================
+
+/**
+ * Civ — 文明类
+ * 严格对照 C++ struct civ（第 22-32 行），包含全部字段：
+ *   ord     — 初始秩序值 (double)     C++: a[i].ord
+ *   neword  — 用于计算的秩序值 (double) C++: a[i].neword
+ *   wei     — 质量/生命 (double)       C++: a[i].wei
+ *   tec     — 科技水平 (double)        C++: a[i].tec
+ *   level   — 纪元等级 (int)           C++: a[i].level
+ *   kill    — 击杀数 (int)             C++: a[i].kill
+ *   dir     — 位置/所在节点编号 (int)   C++: a[i].dir
+ *   shield  — 防御力 (double)          C++: a[i].shield
+ * 额外字段 id 为文明编号（C++ 中隐含为数组下标 i）
+ */
+class Civ {
+  constructor(id = 0) {
+    this.id = id;
+    this.ord = 0;
+    this.neword = 0;
+    this.wei = 0;
+    this.tec = 0;
+    this.level = 1;
+    this.kill = 0;
+    this.dir = 0;
+    this.shield = 0;
+  }
+}
+
+/**
+ * Node — 节点类
+ * C++ 没有显式 struct Node，节点数据分散在 fa[]/vis[]/e[]/space[]/battle 中。
+ * 本类将它们封装为统一结构供 initGame() 使用。
+ * 实际游戏逻辑仍使用扁平数组（与 C++ 一致），Node 类用于初始化阶段。
+ */
+class Node {
+  constructor(id = 0) {
+    this.id = id;
+    this.fa = id;
+    this.occupant = 0;
+    this.edges = [];
+    this.isBattlefield = false;
+    this.battles = [];
+  }
+}
+
+// ===== 常量（对照 C++ 第 8-12 行） =====
+const N = 600;            // 文明总数
+const P = 1000;           // 位置总数参数
+const T = 10;             // 回合数
+const kcd = Math.floor(P / N);  // 位置间隔 = 1
+const die = [0, 5, 10, 30, 120, 600, 3600, 25200, 100800, 1000000, 36000000, -Infinity];  // C++ 第 12 行
+
+// ===== 游戏状态（对照 C++ 全局变量） =====
+let countpla = 0;           // C++: countpla（玩家数量）
+let countciv = N;           // C++: countciv（存活文明数）
+let civs = [];              // 文明数组（Civ 实例，index 1~N，0 不使用）对照 C++: a[N*2]
+let fa = [];                // 并查集父节点  C++: fa[P*2]
+let vis = [];               // 位置→文明ID (0=空)  C++: vis[P*2]
+let e = [];                 // 邻接表  C++: e[P*2] (vector<int>)
+let alive = [];             // 存活状态  C++: alive[N*2] (bool)
+let space = [];             // 战场遗迹标记  C++: space[P*2] (bool)
+let battle = new Map();     // 战场记录  C++: map<int,vector<pair<int,int>>> battle
+let pla = new Map();        // 玩家文明  C++: map<int,int> pla（civId→玩家编号）
+let god = [];               // 神明列表  C++: vector<int> god
+let nodes = [];             // 节点数组（Node 实例，仅 initGame 使用）
+
+// ===== UI 状态 =====
+let currentRound = 0;
+let isPlayerTurn = false;
+let playerChoiceResolver = null;
+let gameSpeed = 'normal';
+let nodePositions = [];
+let hoveredNodeIdx = -1;
+let selectedPlayerCiv = 0;
+let gameRunning = false;
+let logFilter = 'all';
+let _currentRenderNode = 0;
+let _startDir = 0;          // 记录玩家本回合起始位置（对照 C++ move 中的 a[pe].dir）
+
+// ===== 工具函数 =====
+
+/** r(n) — 对照 C++ 第 33-38 行：返回 1~n 的随机整数，n=0 时返回 0 */
+function r(n) {
+  if (n === 0) return 0;
+  return Math.floor(Math.random() * n) + 1;
+}
+
+/** getfa(x) — 对照 C++ 第 39-42 行：并查集路径压缩 */
+function getfa(x) {
+  return x === fa[x] ? x : (fa[x] = getfa(fa[x]));
+}
+
+/** delay — 异步等待，根据速度档位调整 */
+function delay(ms) {
+  if (ms === 0) return new Promise(resolve => setTimeout(resolve, 0));
+  if (gameSpeed === 'instant') return Promise.resolve();
+  let mult = 1;
+  if (gameSpeed === 'fast') mult = 0.3;
+  else if (gameSpeed === 'slow') mult = 2;
+  return new Promise(resolve => setTimeout(resolve, ms * mult));
+}
+
+// ================================================================
+//  游戏逻辑 — 严格对照 C++ 函数
+// ================================================================
+
+/**
+ * initNetwork(p, m) — 对照 C++ init() 第 43-87 行
+ * 每回合开始时重建宇宙网络图
+ * p = 活跃位置数（nue），m = 额外随机边数
+ */
+function initNetwork(p, m) {
+  // 第 45 行: memset(vis, 0, sizeof(vis))
+  vis.fill(0);
+  // 第 46 行: e[0].clear()
+  e[0] = [];
+  // 第 47 行: 非战场节点清空邻接表
+  for (let i = 1; i < 2 * p; i++) {
+    if (!battle.has(i)) e[i] = [];
+  }
+  // 第 48-54 行: 所有非战场节点连接到深渊(0)
+  for (let i = 1; i < 2 * p; i++) {
+    if (battle.has(i)) continue;
+    fa[i] = i;            // 并查集初始化
+    e[i].push(0);         // 连接到深渊
+    e[0].push(i);         // 深渊连接到该节点
+  }
+  // 第 55-69 行: 用并查集构建生成树（随机连接不同集合的节点）
+  let cnt = 2 * p - 2 - battle.size;  // 需要的边数
+  let safety = 0;
+  while (cnt > 0 && safety++ < 100000) {
+    let x = r(2 * p - 1);
+    let y = r(2 * p - 1);
+    if (x === y) continue;
+    if (battle.has(x) || battle.has(y)) continue;
+    if (getfa(x) !== getfa(y)) {
+      fa[fa[x]] = fa[y];   // 第 64 行: DSU 合并
+      e[x].push(y);
+      e[y].push(x);
+      cnt--;
+    }
+  }
+  // 第 70-76 行: 添加 m 条随机边（不检查战场/DSU，与 C++ 一致）
+  for (let i = 0; i < m; i++) {
+    let x = r(2 * p - 1);
+    let y = r(2 * p - 1);
+    e[x].push(y);
+    e[y].push(x);
+  }
+  // 第 77-86 行: 为存活文明分配位置
+  let nit = 1;
+  for (let i = 1; i <= N; i++) {
+    if (alive[i]) {
+      civs[i].dir = nit * kcd + r(kcd) - 1;
+      vis[civs[i].dir] = i;
+      nit++;
+    }
+  }
+}
+
+/**
+ * damage(x, y) — 对照 C++ 第 88-91 行
+ * 伤害比率公式
+ */
+function calcDamage(x, y) {
+  return civs[x].level * civs[x].level * civs[x].tec * civs[x].neword
+    / civs[y].level / civs[y].level / civs[y].tec / civs[y].shield;
+}
+
+/**
+ * damage2(x, y) — 对照 C++ 第 92-95 行
+ * 秩序值伤害公式
+ */
+function calcDamage2(x, y) {
+  return civs[x].neword * Math.max(civs[x].kill, 1) * r(5) * 0.1
+    / civs[y].neword / Math.max(civs[y].kill, 1) / civs[y].shield;
+}
+
+/**
+ * dead(x) — 对照 C++ 第 96-108 行
+ * 文明死亡处理。注意：C++ 原代码无条件设置 vis[a[x].dir]=0
+ */
+function dead(x) {
+  alive[x] = false;
+  vis[civs[x].dir] = 0;     // 第 99 行: 无条件清除位置（与 C++ 一致）
+  countciv--;
+  if (pla.has(x)) {
+    log(`☠️ 玩家${pla.get(x)}的文明${x}阵亡！`, 'death');
+    countpla--;
+    pla.delete(x);
+  }
+}
+
+/**
+ * war(x, y) — 对照 C++ 第 109-174 行
+ * x 和 y 交战。返回值：1=x胜, 2=y胜, -1=平局, -2=同归于尽, 0=无效
+ * 注意：在主循环中调用 war(enemy, i)，所以 win=1 表示敌方胜，win=2 表示己方胜
+ */
+function war(x, y) {
+  if (!alive[x] || !alive[y]) return 0;    // 第 111 行
+  let w, l;
+  // 第 113-128 行: 不同等级——高等级瞬间获胜
+  if (civs[x].level !== civs[y].level) {
+    w = civs[x].level > civs[y].level ? x : y;
+    l = w === x ? y : x;
+    civs[l].tec *= r(8) * 0.1 + 1.2;       // 第 117 行: 败者科技意外增长
+    civs[w].kill++;                          // 第 118 行
+    let loserWei = civs[l].wei;              // 保存败者生命（dead 不修改 wei）
+    dead(l);                                 // 第 119 行
+    civs[w].wei -= calcDamage(l, w) * loserWei;  // 第 120 行: 胜者承受败者残余伤害
+    if (civs[w].wei <= 0) {                 // 第 121-126 行: 胜者也被击杀→同归于尽
+      civs[l].kill++;
+      dead(w);
+      return -2;
+    }
+    return w === x ? 1 : 2;                 // 第 127 行
+  }
+  // 第 129-172 行: 同等级多回合战斗
+  let lev = civs[x].level;
+  let roundCnt = lev * lev;                 // 第 130 行: 回合数 = level²
+  while (roundCnt-- > 0) {
+    let wx = civs[x].wei;                   // 第 133 行: 保存 x 当前生命
+    civs[x].wei -= calcDamage(y, x) * civs[y].wei;  // 第 134 行
+    // 第 135-136 行: 如果 x 生命低于死亡阈值，y 只承受少量反击伤害
+    if (civs[x].wei < die[civs[x].level])
+      civs[y].wei -= calcDamage(x, y) * wx * (r(10) * 0.01 + 0.1);
+    else
+      civs[y].wei -= calcDamage(x, y) * wx;
+    // 第 137-140 行: 秩序值伤害
+    w = civs[x].neword > civs[y].neword ? x : y;
+    l = w === x ? y : x;
+    civs[l].neword -= calcDamage2(w, l);
+    civs[w].neword -= calcDamage2(l, w);
+    // 第 141-146 行: NaN 保护→同归于尽
+    if (isNaN(civs[x].wei) || isNaN(civs[y].wei) || isNaN(civs[x].neword) || isNaN(civs[y].neword)) {
+      dead(x);
+      dead(y);
+      return -2;
+    }
+    // 第 147-155 行: x 生命低于阈值→x 死亡
+    if (civs[x].wei < die[lev]) {
+      dead(x);
+      if (civs[y].wei < die[lev]) { dead(y); return -2; }  // 双亡
+      return 2;  // y 胜（因为 x 先亡）
+    }
+    // 第 157-161 行: y 生命低于阈值→y 死亡
+    if (civs[y].wei < die[lev]) {
+      dead(y);
+      return 1;  // x 胜
+    }
+    // 第 162-166 行: x 秩序崩溃→x 死亡
+    if (civs[x].neword < civs[x].ord * r(20) * 0.01) {
+      dead(x);
+      return 2;
+    }
+    // 第 167-171 行: y 秩序崩溃→y 死亡
+    if (civs[y].neword < civs[y].ord * r(36) * 0.01) {
+      dead(y);
+      return 1;
+    }
+  }
+  return -1;  // 第 173 行: 平局（回合耗尽）
+}
+
+/**
+ * chance(x) — 对照 C++ 第 175-184 行
+ * 深渊机缘：在节点0时触发随机事件
+ */
+function chance(x) {
+  if (r(20) === 3) {                        // 第 177 行: 1/20 概率重生
+    civs[x].wei = die[civs[x].level] * 1.1;
+    if (pla.has(x)) log(`💫 文明${x}在深渊中获得重生！生命重置`, 'player');
+  } else if (r(20) === 17) {               // 第 178-182 行: 1/20 概率大机缘
+    civs[x].wei *= Math.min((r(3) + 1) * (r(3) + 1) * 0.5, 5.0);
+    civs[x].tec += 0.2;
+    if (pla.has(x)) log(`✨ 文明${x}在深渊中获得机缘！生命与科技大增`, 'player');
+  } else {                                  // 第 183 行: 多数情况微调
+    civs[x].wei *= r(17) * 0.01 + 0.91;
+    if (pla.has(x)) log(`🌊 文明${x}在深渊中漂泊，生命微调`, 'player');
+  }
+}
+
+/**
+ * aiMove(u, pe) — 对照 C++ move() 第 185-197 行
+ * AI 文明随机移动：选择邻居节点，避免回到起始位置，战场节点特殊处理
+ * u = 当前位置, pe = 文明ID
+ */
+function aiMove(u, pe) {
+  let v = e[u][r(e[u].length) - 1];         // 第 187 行: 随机选一个邻居
+  let safety = 0;
+  while (v === _startDir && safety++ < 100) {  // 第 188 行: 避免回到起始位置（C++: a[pe].dir）
+    v = e[u][r(e[u].length) - 1];
+  }
+  if (space[v]) {                           // 第 189-195 行: 目标是战场遗迹→跳到随机战场
+    let keys = Array.from(battle.keys());
+    if (keys.length > 0) {
+      v = keys[r(keys.length) - 1];         // 含节点0（深渊），与 C++ 一致
+    }
+  }
+  return v;
+}
+
+/**
+ * growthPhase() — 对照 C++ 第 323-348 行
+ * 每回合结束后的成长阶段：科技/秩序/生命增长，升级，飞升
+ */
+function growthPhase() {
+  for (let i = 1; i <= N; i++) {
+    if (!alive[i]) continue;
+    // 第 326-328 行: 属性增长
+    civs[i].tec += (r(20) * 0.01 + 0.2) / civs[i].level / civs[i].tec;
+    civs[i].neword += civs[i].neword * civs[i].tec * (r(20) * 0.01 + 0.1) / civs[i].level;
+    civs[i].wei += civs[i].level * civs[i].neword * (r(20) + 10) * 0.1;
+    // 第 329-341 行: 升级循环
+    while (civs[i].tec >= 2.3 && civs[i].level < 11) {
+      civs[i].level++;
+      civs[i].tec /= 2;
+      civs[i].neword += civs[i].level * r(3) * 0.01;
+      civs[i].wei *= civs[i].level;
+      civs[i].shield += Math.sqrt(civs[i].wei) * r(7) * 0.25;
+      if (pla.has(i)) {
+        log(`⬆️ 玩家${pla.get(i)}的文明${i}升至 ${civs[i].level} 级！`, 'player');
+      }
+    }
+    // 第 342-347 行: 11级且有12+击杀→1/5概率飞升为神明
+    if (civs[i].level === 11 && civs[i].kill > 12 && r(5) === 2) {
+      dead(i);
+      god.push(i);
+      log(`🌟 【世界广播】文明${i}超越凡尘，成为神明！`, 'god');
+    }
+  }
+}
+
+// ================================================================
+//  初始化 — 对照 C++ main() 第 200-227 行
+// ================================================================
+
+/**
+ * initGame(numPlayers) — 对照 C++ main() 初始化部分
+ * 创建 600 个文明（Civ 实例）、初始化全局数组、分配玩家
+ */
+function initGame(numPlayers) {
+  // --- 初始化全局数组 ---
+  fa = new Array(P * 2).fill(0);
+  vis = new Array(P * 2).fill(0);
+  e = new Array(P * 2).fill(null).map(() => []);
+  space = new Array(P * 2).fill(false);
+  alive = new Array(N * 2).fill(false);
+  battle = new Map();
+  battle.set(0, []);        // 第 214 行: battle[0] 深渊节点
+  god = [];
+  pla = new Map();
+  countciv = N;
+  countpla = numPlayers;
+
+  // --- 创建节点（仅用于初始化记录，游戏逻辑用扁平数组） ---
+  nodes = new Array(2 * P);
+  for (let i = 0; i < 2 * P; i++) {
+    nodes[i] = new Node(i);
+  }
+
+  // --- 第 201-213 行: 初始化 600 个文明 ---
+  civs = new Array(N * 2);
+  for (let i = 1; i <= N; i++) {
+    civs[i] = new Civ(i);
+    civs[i].ord = r(30) * 0.01 + 0.6;       // 第 203 行: 初始秩序 [0.61, 0.90]
+    civs[i].neword = civs[i].ord;            // 第 204 行
+    civs[i].wei = r(10) + r(10) + 30;        // 第 205 行: 生命 [32, 50]
+    civs[i].tec = r(99) * 0.01 + 1;          // 第 206 行: 科技 [1.01, 1.99]
+    civs[i].level = 1;                        // 第 207 行
+    civs[i].kill = 0;                         // 第 208 行
+    civs[i].dir = i * kcd + r(kcd) - 1;      // 第 209 行: 位置
+    civs[i].shield = r(20) * 0.1 + 3;        // 第 210 行: 护盾 [3.1, 5.0]
+    alive[i] = true;                          // 第 211 行
+    vis[civs[i].dir] = i;                     // 第 212 行
+  }
+
+  // --- 第 216-227 行: 分配玩家文明 ---
+  let kcp = Math.floor(N / countpla);
+  for (let i = 0; i < countpla; i++) {
+    let ot = i * kcp + r(kcp);              // 第 221 行: 在各段中随机选一个
+    pla.set(ot, i + 1);                     // 第 222 行
+    civs[ot].neword = 0.8 + r(10) * 0.01;  // 第 223 行: 玩家初始秩序较低
+    civs[ot].wei = 45 + r(15);              // 第 224 行: 玩家生命稍高
+    civs[ot].tec = 1.9 + r(10) * 0.01;     // 第 225 行: 玩家科技接近升级阈值
+    civs[ot].shield = r(10) * 0.1 + 4;     // 第 226 行: 玩家护盾稍高
+  }
+
+  // 重新刷新 vis（玩家属性修改不影响位置，但确保一致性）
+  vis.fill(0);
+  for (let i = 1; i <= N; i++) {
+    if (alive[i]) vis[civs[i].dir] = i;
+  }
+}
+
+// ================================================================
+//  游戏主循环 — 对照 C++ main() 第 245-357 行
+// ================================================================
+
+async function gameLoop() {
+  gameRunning = true;
+  for (let k = 1; k <= T; k++) {            // 第 245 行
+    currentRound = k;
+    let nue = countciv * kcd;               // 第 247 行
+    if (nue < 1) nue = 1;
+    initNetwork(nue, nue * (r(4) + 1));     // 第 248 行
+
+    log(`\n【第 ${k} 回合】`, 'round');
+    updateHeader();
+    showProcessing('其他文明行动中...');
+    updateProgress(0, countciv);
+
+    // 第 250-322 行: 依次处理所有文明
+    let aiCount = 0;
+    for (let i = 1; i <= N; i++) {
+      if (!alive[i]) continue;               // 第 254 行
+
+      // 记录起始位置（用于 aiMove 中的 a[pe].dir 对照）
+      _startDir = civs[i].dir;
+
+      if (pla.has(i)) {
+        // 玩家文明：暂停 AI 处理，等待玩家操作
+        hideProcessing();
+        await processPlayerCiv(i);
+        if (pla.size > 0) showProcessing('其他文明行动中...');
+      } else {
+        // AI 文明：直接处理
+        processAICiv(i);
+        aiCount++;
+        if (aiCount % 80 === 0) {
+          updateHeader();
+          updateProgress(aiCount, countciv);
+          await delay(0);   // 让出事件循环避免阻塞
+        }
+      }
+      // 注意：C++ 没有在 civ 循环内检查 countpla==0
+      // 玩家全灭后仍继续处理本回合剩余 AI，回合结束后才判定
+    }
+
+    // 第 323-348 行: 成长阶段
+    showProcessing('文明演化中...');
+    await delay(500);
+    growthPhase();
+    updateHeader();
+    updateStats();
+    hideProcessing();
+    await delay(300);
+
+    // 第 351 行: 仅剩 ≤1 文明→结束
+    if (countciv <= 1) break;
+
+    // 第 352-356 行: 所有玩家阵亡→宇宙爆炸（直接结束，不显示完整结果）
+    if (countpla === 0) {
+      log('【所有玩家已被吞没，宇宙爆炸】', 'system');
+      await delay(1000);
+      showExplosionEnd();
+      return;
+    }
+  }
+  // 第 358-392 行: 正常结束→显示完整结果
+  showEndScreen();
+}
+
+// ================================================================
+//  玩家文明处理 — 对照 C++ 第 250-322 行（玩家分支）
+// ================================================================
+
+async function processPlayerCiv(i) {
+  let playerNum = pla.get(i);
+  selectedPlayerCiv = i;
+  log(`🎮 请玩家${playerNum}操作（文明${i}）`, 'player');
+
+  vis[civs[i].dir] = 0;                    // 第 255 行: 清除当前位置标记
+  let x = civs[i].dir;                     // 第 256 行
+  let maxk = 0;                             // 第 253 行
+
+  for (let step = 1; step <= civs[i].level; step++) {  // 第 257 行
+    if (!alive[i]) break;                   // 第 313 行
+
+    updateStepIndicator(step, civs[i].level);
+    updateStats();
+
+    // 第 259-281 行: 等待玩家选择目的地
+    let choice;
+    if (x !== 0) {                          // 第 260 行: 玩家在非深渊位置
+      choice = await waitForNodeChoice(i, x);
+    } else {                                // 第 273 行: 玩家在深渊
+      choice = await waitForAbyssChoice(i);
+    }
+    x = choice;
+
+    // 第 282 行: 到达深渊→触发机缘
+    if (x === 0) {
+      log(`🌀 文明${i}进入宇宙深渊，机缘随机投放中...`, 'player');
+      await delay(500);
+      chance(i);
+      updateStats();
+    }
+
+    // 第 283-315 行: 遭遇检查
+    if (vis[x] && vis[x] !== 0) {
+      let enemy = vis[x];                   // 第 285 行
+      if (Math.abs(civs[enemy].level - civs[i].level) >= 3) {  // 第 286 行: 等级差≥3→不交战
+        log(`⚠️ 遭遇未知文明，等级差距过大，文明${i}绕道而行`, 'battle');
+        continue;
+      }
+      // 玩家视角：如果敌方等级高于自己，之前看不到；现在突然遭遇
+      if (civs[enemy].level >= civs[i].level) {
+        log(`⚠️ 突然遭遇更强文明${enemy}(Lv${civs[enemy].level})！`, 'battle');
+      } else {
+        log(`⚔️ 遭遇文明${enemy}(Lv${civs[enemy].level})！`, 'battle');
+      }
+      let win = war(enemy, i);              // 第 287 行: war(enemy, i)
+      await delay(300);
+
+      // 第 288 行: 非平局、非深渊、非同归于尽、非已有战场→标记为战场遗迹
+      if (win !== -1 && x !== 0 && win !== -2 && !battle.has(x)) {
+        space[x] = true;
+      }
+
+      // 第 289-301 行: 同归于尽→创建遗迹战场
+      if (win === -2) {
+        log(`💥 文明${enemy}与文明${i}同归于尽！节点${x}化为遗迹战场`, 'death');
+        if (!battle.has(x)) {
+          for (const [bf] of battle) {
+            if (bf === 0) continue;
+            e[bf].push(x);                  // 第 296 行
+            e[x].push(bf);                  // 第 297 行
+          }
+          battle.set(x, []);
+        }
+        battle.get(x).push([enemy, i]);     // 第 300 行
+      }
+      // 第 302-306 行: 移动方(i)获胜→掠夺
+      else if (win === 2) {
+        log(`🏆 文明${i}击败文明${enemy}！`, 'victory');
+        civs[i].wei += civs[enemy].wei * civs[enemy].neword * civs[enemy].level
+          / civs[i].level * (r(10) * 0.01 + 0.1) * civs[i].tec;
+        civs[i].tec += civs[enemy].tec * civs[enemy].level * (r(20) * 0.01 + 0.3) / civs[i].tec;
+        maxk++;                              // 第 306 行
+      }
+      // 第 308-312 行: 占据方(enemy)获胜→掠夺
+      else if (win === 1) {
+        log(`💀 文明${i}被文明${enemy}击败！`, 'death');
+        civs[enemy].wei += civs[i].wei * civs[i].neword * civs[i].level
+          / civs[enemy].level * (r(10) * 0.01 + 0.1) * civs[enemy].tec;
+        civs[enemy].tec += civs[i].tec * civs[i].level * (r(20) * 0.01 + 0.3) / civs[enemy].tec;
+      }
+      else if (win === -1) {
+        log(`🤝 文明${i}与文明${enemy}势均力敌，各自退去`, 'battle');
+      }
+
+      updateStats();
+      if (!alive[i]) break;                 // 第 313 行
+      if (maxk > civs[i].level * 10) break; // 第 314 行
+    }
+  }
+
+  // 第 317-321 行: 存活→更新最终位置
+  if (alive[i]) {
+    vis[x] = i;
+    civs[i].dir = x;
+  }
+
+  hideStepIndicator();
+  hideNetworkUI();
+  selectedPlayerCiv = 0;
+}
+
+// ================================================================
+//  AI 文明处理 — 对照 C++ 第 250-322 行（AI 分支）
+// ================================================================
+
+function processAICiv(i) {
+  if (!alive[i]) return;
+  vis[civs[i].dir] = 0;                    // 第 255 行
+  let x = civs[i].dir;                     // 第 256 行
+  let maxk = 0;                             // 第 253 行
+
+  for (let step = 1; step <= civs[i].level; step++) {  // 第 257 行
+    if (!alive[i]) break;
+
+    x = aiMove(x, i);                       // 第 259 行: AI 移动
+    if (x === 0) chance(i);                 // 第 282 行: 到深渊→机缘
+
+    // 第 283-315 行: 遭遇
+    if (vis[x] && vis[x] !== 0) {
+      let enemy = vis[x];
+      if (Math.abs(civs[enemy].level - civs[i].level) >= 3) continue;  // 第 286 行
+      let win = war(enemy, i);              // 第 287 行
+
+      if (win !== -1 && x !== 0 && win !== -2 && !battle.has(x)) {
+        space[x] = true;                    // 第 288 行
+      }
+      if (win === -2) {                     // 第 289-301 行
+        if (!battle.has(x)) {
+          for (const [bf] of battle) {
+            if (bf === 0) continue;
+            e[bf].push(x);
+            e[x].push(bf);
+          }
+          battle.set(x, []);
+        }
+        battle.get(x).push([enemy, i]);
+      }
+      if (win === 2) {                      // 第 302-306 行
+        civs[i].wei += civs[enemy].wei * civs[enemy].neword * civs[enemy].level
+          / civs[i].level * (r(10) * 0.01 + 0.1) * civs[i].tec;
+        civs[i].tec += civs[enemy].tec * civs[enemy].level * (r(20) * 0.01 + 0.3) / civs[i].tec;
+        maxk++;
+      } else if (win === 1) {               // 第 308-312 行
+        civs[enemy].wei += civs[i].wei * civs[i].neword * civs[i].level
+          / civs[enemy].level * (r(10) * 0.01 + 0.1) * civs[enemy].tec;
+        civs[enemy].tec += civs[i].tec * civs[i].level * (r(20) * 0.01 + 0.3) / civs[enemy].tec;
+      }
+
+      if (!alive[i]) break;                 // 第 313 行
+      if (maxk > civs[i].level * 10) break; // 第 314 行
+    }
+  }
+
+  if (alive[i]) {                           // 第 317-321 行
+    vis[x] = i;
+    civs[i].dir = x;
+  }
+}
+
+// ================================================================
+//  玩家输入处理
+// ================================================================
+
+function waitForNodeChoice(civId, currentNode) {
+  _currentRenderNode = currentNode;
+  return new Promise(resolve => {
+    playerChoiceResolver = resolve;
+    isPlayerTurn = true;
+    renderNetwork(civId, currentNode);
+    showNetworkCanvas();
+  });
+}
+
+function waitForAbyssChoice(civId) {
+  return new Promise(resolve => {
+    playerChoiceResolver = resolve;
+    isPlayerTurn = true;
+    showAbyssPanel(civId);
+  });
+}
+
+function onPlayerChoose(destination) {
+  if (playerChoiceResolver) {
+    isPlayerTurn = false;
+    hideNetworkUI();
+    const resolver = playerChoiceResolver;
+    playerChoiceResolver = null;
+    resolver(destination);
+  }
+}
+
+// ================================================================
+//  网络可视化 — 含可见性限制（黑暗森林法则）
+//  玩家只能发现等级低于自己的文明
+// ================================================================
+
+function renderNetwork(civId, currentNode) {
+  const canvas = document.getElementById('networkCanvas');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // 背景渐变
+  const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, w / 2);
+  bgGrad.addColorStop(0, 'rgba(20, 10, 50, 0.3)');
+  bgGrad.addColorStop(1, 'rgba(5, 5, 15, 0)');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, w, h);
+
+  // 获取连接的节点（去重）
+  let connected = e[currentNode] || [];
+  connected = [...new Set(connected)];
+
+  const playerLevel = civs[civId].level;
+  const radius = Math.min(w, h) * 0.32;
+  nodePositions = [];
+
+  // 绘制连线
+  connected.forEach((nodeId, i) => {
+    const angle = (i / connected.length) * Math.PI * 2 - Math.PI / 2;
+    const x = cx + Math.cos(angle) * radius;
+    const y = cy + Math.sin(angle) * radius;
+    nodePositions.push({ id: nodeId, x, y, angle });
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(x, y);
+
+    let lineColor = 'rgba(100, 100, 200, 0.2)';
+    if (nodeId === 0) lineColor = 'rgba(153, 102, 204, 0.4)';
+    else if (battle.has(nodeId)) lineColor = 'rgba(255, 136, 51, 0.4)';
+    // ★ 可见性规则：只有等级低于玩家的文明才显示为红色连线
+    else if (vis[nodeId] && vis[nodeId] !== 0 && civs[vis[nodeId]].level < playerLevel) {
+      lineColor = 'rgba(255, 68, 102, 0.4)';
+    }
+
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = hoveredNodeIdx === i ? 2 : 1;
+    ctx.stroke();
+  });
+
+  // 绘制外围节点
+  nodePositions.forEach((np, i) => {
+    drawNode(ctx, np.x, np.y, np.id, false, hoveredNodeIdx === i, civId);
+  });
+
+  // 绘制中心节点（玩家当前位置）
+  drawNode(ctx, cx, cy, currentNode, true, false, civId);
+
+  // 提示文字
+  ctx.fillStyle = 'rgba(200, 200, 224, 0.4)';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('点击节点选择目的地（更强的文明对你不可见）', cx, h - 16);
+}
+
+function drawNode(ctx, x, y, nodeId, isCurrent, isHovered, civId) {
+  const baseRadius = isCurrent ? 36 : 24;
+  const radius = isHovered ? baseRadius + 4 : baseRadius;
+
+  let color = '#4488ff';
+  let label = String(nodeId);
+  let subLabel = '';
+
+  const playerLevel = civId ? civs[civId].level : 1;
+
+  if (nodeId === 0) {
+    color = '#9966cc';
+    label = '深渊';
+  } else if (battle.has(nodeId)) {
+    // 战场遗迹：始终可见（物理特征，不依赖文明探测）
+    color = '#ff8833';
+    label = String(nodeId);
+    subLabel = `遗迹×${battle.get(nodeId).length}`;
+  } else if (vis[nodeId] && vis[nodeId] !== 0) {
+    let occupant = vis[nodeId];
+    // ★ 可见性规则：只有等级低于玩家的文明才显示详细信息
+    if (civs[occupant].level < playerLevel) {
+      color = '#ff4466';
+      label = String(nodeId);
+      subLabel = `文明${occupant} Lv${civs[occupant].level}`;
+    } else {
+      // 更强的文明：看起来是空节点（玩家无法探测）
+      color = '#4488ff';
+      label = String(nodeId);
+      subLabel = '';
+    }
+  } else {
+    color = '#4488ff';
+    label = String(nodeId);
+  }
+
+  if (isCurrent) {
+    color = '#ffd700';
+    label = '你';
+    if (civId) subLabel = `Lv${civs[civId].level}`;
+  }
+
+  // 光晕
+  ctx.shadowBlur = isCurrent ? 25 : (isHovered ? 18 : 10);
+  ctx.shadowColor = color;
+
+  // 外圈（当前节点）
+  if (isCurrent) {
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 6, 0, Math.PI * 2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.3;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // 主体
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  const grad = ctx.createRadialGradient(x - radius * 0.3, y - radius * 0.3, 0, x, y, radius);
+  grad.addColorStop(0, color);
+  grad.addColorStop(1, shadeColor(color, -40));
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // 边框
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = isHovered ? '#ffffff' : shadeColor(color, 30);
+  ctx.lineWidth = isHovered ? 2 : 1;
+  ctx.stroke();
+
+  // 文字
+  ctx.fillStyle = '#ffffff';
+  ctx.font = isCurrent ? 'bold 14px sans-serif' : '12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, x, y - (subLabel ? 5 : 0));
+  if (subLabel) {
+    ctx.font = '10px sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillText(subLabel, x, y + 8);
+  }
+}
+
+function shadeColor(hex, percent) {
+  let R = parseInt(hex.substring(1, 3), 16);
+  let G = parseInt(hex.substring(3, 5), 16);
+  let B = parseInt(hex.substring(5, 7), 16);
+  R = Math.min(255, Math.max(0, R + percent));
+  G = Math.min(255, Math.max(0, G + percent));
+  B = Math.min(255, Math.max(0, B + percent));
+  return '#' + R.toString(16).padStart(2, '0') + G.toString(16).padStart(2, '0') + B.toString(16).padStart(2, '0');
+}
+
+// Canvas 事件
+function initCanvasEvents() {
+  const canvas = document.getElementById('networkCanvas');
+
+  canvas.addEventListener('click', (event) => {
+    if (!isPlayerTurn || nodePositions.length === 0) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const mx = (event.clientX - rect.left) * scaleX;
+    const my = (event.clientY - rect.top) * scaleY;
+
+    for (let i = 0; i < nodePositions.length; i++) {
+      const np = nodePositions[i];
+      const dist = Math.sqrt((mx - np.x) ** 2 + (my - np.y) ** 2);
+      if (dist < 28) {
+        onPlayerChoose(np.id);
+        return;
+      }
+    }
+  });
+
+  canvas.addEventListener('mousemove', (event) => {
+    if (!isPlayerTurn || nodePositions.length === 0) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const mx = (event.clientX - rect.left) * scaleX;
+    const my = (event.clientY - rect.top) * scaleY;
+
+    let newHover = -1;
+    for (let i = 0; i < nodePositions.length; i++) {
+      const np = nodePositions[i];
+      const dist = Math.sqrt((mx - np.x) ** 2 + (my - np.y) ** 2);
+      if (dist < 28) { newHover = i; break; }
+    }
+
+    if (newHover !== hoveredNodeIdx) {
+      hoveredNodeIdx = newHover;
+      canvas.style.cursor = newHover >= 0 ? 'pointer' : 'default';
+      if (selectedPlayerCiv && isPlayerTurn) {
+        renderNetwork(selectedPlayerCiv, _currentRenderNode);
+      }
+    }
+  });
+}
+
+// ================================================================
+//  深渊面板 — 含可见性限制
+// ================================================================
+
+function showAbyssPanel(civId) {
+  document.getElementById('networkCanvas').style.display = 'none';
+  document.getElementById('abyssPanel').style.display = 'block';
+
+  const destDiv = document.getElementById('abyssDestinations');
+  destDiv.innerHTML = '';
+
+  let nue = countciv * kcd;
+  let maxNode = Math.max(1, nue * 2 - 2);
+  let playerLevel = civs[civId].level;
+  let shown = new Set();
+
+  // ★ 可见性规则：只显示等级低于玩家的文明
+  let detected = [];
+  for (let i = 1; i <= N && detected.length < 20; i++) {
+    if (alive[i] && i !== civId && civs[i].level < playerLevel) {
+      detected.push({ id: civs[i].dir, civ: i, level: civs[i].level });
+      shown.add(civs[i].dir);
+    }
+  }
+
+  detected.forEach(o => {
+    const chip = document.createElement('div');
+    chip.className = 'dest-chip occupied';
+    chip.textContent = `节点${o.id} (Lv${o.level})`;
+    chip.onclick = () => onPlayerChoose(o.id);
+    destDiv.appendChild(chip);
+  });
+
+  // 战场遗迹（始终可见）
+  for (const [bfPos] of battle) {
+    if (bfPos === 0 || shown.has(bfPos)) continue;
+    const chip = document.createElement('div');
+    chip.className = 'dest-chip battlefield';
+    chip.textContent = `节点${bfPos} (遗迹)`;
+    chip.onclick = () => onPlayerChoose(bfPos);
+    destDiv.appendChild(chip);
+    shown.add(bfPos);
+  }
+
+  // 深渊选项（留在原地=再次机缘）
+  const abyssChip = document.createElement('div');
+  abyssChip.className = 'dest-chip abyss';
+  abyssChip.textContent = '留在深渊 (再次机缘)';
+  abyssChip.onclick = () => onPlayerChoose(0);
+  destDiv.appendChild(abyssChip);
+
+  // 确认按钮（手动输入任意节点）
+  document.getElementById('abyssConfirmBtn').onclick = () => {
+    const input = document.getElementById('abyssInput');
+    let val = parseInt(input.value);
+    if (isNaN(val) || val < 0 || val > maxNode) {
+      input.style.borderColor = 'var(--red)';
+      return;
+    }
+    onPlayerChoose(val);
+  };
+
+  document.getElementById('abyssInput').value = '';
+  document.getElementById('abyssInput').style.borderColor = 'var(--border)';
+  document.getElementById('abyssInput').focus();
+}
+
+function showNetworkCanvas() {
+  document.getElementById('networkCanvas').style.display = 'block';
+  document.getElementById('abyssPanel').style.display = 'none';
+}
+
+function hideNetworkUI() {
+  hoveredNodeIdx = -1;
+}
+
+// ================================================================
+//  UI 更新函数
+// ================================================================
+
+function updateHeader() {
+  document.getElementById('roundDisplay').textContent = `${currentRound}/${T}`;
+  document.getElementById('civCountDisplay').textContent = countciv;
+  let plaCount = pla.size;
+  document.getElementById('playerCountDisplay').textContent = `${plaCount}/${countpla}`;
+
+  let civEl = document.getElementById('civCountDisplay');
+  civEl.className = 'value ' + (countciv < 50 ? 'red' : countciv < 200 ? 'gold' : 'green');
+
+  let plaEl = document.getElementById('playerCountDisplay');
+  plaEl.className = 'value ' + (plaCount === 0 ? 'red' : 'gold');
+}
+
+function updateStats() {
+  const content = document.getElementById('statsContent');
+
+  if (pla.size === 0 && countpla > 0) {
+    content.innerHTML = '<p style="color:var(--red);text-align:center;padding:20px 0">☠️ 你的文明已灭亡</p><p style="color:var(--text-dim);font-size:12px;text-align:center">观战模式 - 等待回合结束</p>';
+    return;
+  }
+
+  let html = '';
+  for (const [civId, playerNum] of pla) {
+    if (!alive[civId]) continue;
+    let c = civs[civId];
+    let tecProgress = Math.min(100, (c.tec / 2.3) * 100);
+    let weiRatio = c.wei / (die[c.level] * 10 || 1);
+    let weiPercent = Math.min(100, weiRatio * 100);
+    let ordRatio = c.neword / c.ord;
+    let ordPercent = Math.min(100, ordRatio * 100);
+
+    let weiClass = weiPercent < 20 ? 'red' : weiPercent < 50 ? 'yellow' : 'green';
+    let ordClass = ordPercent < 30 ? 'red' : ordPercent < 60 ? 'yellow' : 'green';
+
+    html += `
+      <div class="civ-card">
+        <div class="civ-name glow">玩家${playerNum} · 文明#${civId}</div>
+        <div class="stat-row"><span class="stat-label">等级</span><span class="stat-value" style="color:var(--gold)">${c.level} / 11</span></div>
+        <div class="stat-bar"><div class="stat-bar-fill gold" style="width:${tecProgress}%"></div></div>
+        <div class="stat-row" style="margin-top:4px"><span class="stat-label">科技</span><span class="stat-value">${c.tec.toFixed(2)}</span></div>
+        <div class="stat-row"><span class="stat-label">生命</span><span class="stat-value">${Math.floor(c.wei)}</span></div>
+        <div class="stat-bar"><div class="stat-bar-fill ${weiClass}" style="width:${weiPercent}%"></div></div>
+        <div class="stat-row" style="margin-top:4px"><span class="stat-label">秩序</span><span class="stat-value">${c.neword.toFixed(2)}</span></div>
+        <div class="stat-bar"><div class="stat-bar-fill ${ordClass}" style="width:${ordPercent}%"></div></div>
+        <div class="stat-row" style="margin-top:4px"><span class="stat-label">护盾</span><span class="stat-value">${c.shield.toFixed(1)}</span></div>
+        <div class="stat-row"><span class="stat-label">击杀</span><span class="stat-value" style="color:var(--red)">${c.kill}</span></div>
+        <div class="stat-row"><span class="stat-label">位置</span><span class="stat-value" style="color:var(--cyan)">${c.dir === 0 ? '深渊' : '节点' + c.dir}</span></div>
+      </div>
+    `;
+  }
+
+  // ★ 探测信息：显示玩家能探测到的附近文明（等级低于自己的）
+  if (selectedPlayerCiv && isPlayerTurn && alive[selectedPlayerCiv]) {
+    let currentNode = _currentRenderNode;
+    let connected = e[currentNode] || [];
+    connected = [...new Set(connected)];
+    let playerLevel = civs[selectedPlayerCiv].level;
+
+    let scanHtml = '';
+    for (let nodeId of connected) {
+      if (nodeId === currentNode) continue;
+      if (nodeId === 0) {
+        scanHtml += `<div class="node-info abyss">深渊 — 可传送至任意节点</div>`;
+      } else if (battle.has(nodeId)) {
+        scanHtml += `<div class="node-info battlefield">节点${nodeId} — 遗迹战场</div>`;
+      } else if (vis[nodeId] && vis[nodeId] !== 0) {
+        let occ = vis[nodeId];
+        if (civs[occ].level < playerLevel) {
+          // ★ 可探测：等级低于玩家
+          scanHtml += `<div class="node-info occupied">节点${nodeId} — 文明${occ} (Lv${civs[occ].level})</div>`;
+        }
+        // 更高等级的文明：完全不显示（黑暗森林——你不知道他们在那里）
+      }
+    }
+
+    if (scanHtml) {
+      html += `<div class="divider"></div>`;
+      html += `<h2 style="color:var(--cyan);font-size:14px;margin-bottom:8px;letter-spacing:2px;border-bottom:1px solid var(--border);padding-bottom:6px">探测结果</h2>`;
+      html += `<div class="scan-info">${scanHtml}</div>`;
+    }
+  }
+
+  if (html === '') {
+    html = '<p style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px 0">等待操作...</p>';
+  }
+
+  content.innerHTML = html;
+}
+
+function updateStepIndicator(current, total) {
+  const el = document.getElementById('stepIndicator');
+  el.style.display = 'block';
+  el.textContent = `步骤 ${current}/${total} · 选择目的地`;
+}
+
+function hideStepIndicator() {
+  document.getElementById('stepIndicator').style.display = 'none';
+}
+
+function showProcessing(text) {
+  const overlay = document.getElementById('processingOverlay');
+  overlay.style.display = 'block';
+  document.getElementById('processingSub').textContent = text || '处理其他文明';
+  document.getElementById('progressFill').style.width = '0%';
+}
+
+function updateProgress(current, total) {
+  const pct = total > 0 ? Math.min(100, (current / total) * 100) : 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+function hideProcessing() {
+  document.getElementById('processingOverlay').style.display = 'none';
+}
+
+function log(message, type = 'info') {
+  const logDiv = document.getElementById('gameLog');
+  const entry = document.createElement('div');
+  entry.className = `log-entry ${type}`;
+  entry.textContent = message.replace(/^\n/, '');
+  logDiv.appendChild(entry);
+
+  while (logDiv.children.length > 300) {
+    logDiv.removeChild(logDiv.firstChild);
+  }
+
+  logDiv.scrollTop = logDiv.scrollHeight;
+  applyLogFilter(entry);
+}
+
+function applyLogFilter(entry) {
+  if (logFilter === 'all') return;
+  if (logFilter === 'player' && !entry.classList.contains('player') && !entry.classList.contains('round')) {
+    entry.classList.add('hidden');
+  }
+  if (logFilter === 'battle' && !entry.classList.contains('battle') && !entry.classList.contains('death') && !entry.classList.contains('round')) {
+    entry.classList.add('hidden');
+  }
+}
+
+function applyAllLogFilters() {
+  const entries = document.querySelectorAll('#gameLog .log-entry');
+  entries.forEach(entry => {
+    entry.classList.remove('hidden');
+    applyLogFilter(entry);
+  });
+}
+
+// ================================================================
+//  结束画面 — 对照 C++ 第 358-392 行
+// ================================================================
+
+/** showExplosionEnd — 所有玩家阵亡时的特殊结束（对照 C++ 第 352-356 行） */
+function showExplosionEnd() {
+  gameRunning = false;
+  hideStepIndicator();
+  hideProcessing();
+  hideNetworkUI();
+  showScreen('endScreen');
+
+  const title = document.getElementById('endTitle');
+  title.textContent = '💥 宇宙爆炸';
+  title.className = 'defeat';
+
+  const results = document.getElementById('endResults');
+  results.innerHTML = '<div class="end-section"><h3>所有玩家已被吞没</h3><div class="content" style="color:var(--red);font-size:18px;text-align:center">宇宙因失去一切观测者而坍缩爆炸</div></div>';
+}
+
+/** showEndScreen — 正常结束，显示完整结果（对照 C++ 第 358-392 行） */
+function showEndScreen() {
+  gameRunning = false;
+  hideStepIndicator();
+  hideProcessing();
+  hideNetworkUI();
+  showScreen('endScreen');
+
+  const title = document.getElementById('endTitle');
+  const results = document.getElementById('endResults');
+
+  // 判断胜利/失败
+  let playerSurvived = pla.size > 0;
+
+  if (playerSurvived) {
+    title.textContent = '🏆 文明永存';
+    title.className = 'victory';
+  } else {
+    title.textContent = '💀 文明陨落';
+    title.className = 'defeat';
+  }
+
+  let html = '';
+
+  // 第 359-362 行: 神级文明
+  html += '<div class="end-section"><h3>🌟 神级文明</h3><div class="content">';
+  if (god.length === 0) html += '无';
+  else god.forEach(g => html += `<span class="civ-item god-item">文明${g}</span>`);
+  html += '</div></div>';
+
+  // 第 363-373 行: 存活凡级文明
+  html += '<div class="end-section"><h3>存活凡级文明</h3><div class="content">';
+  let anyAlive = false;
+  for (let i = 1; i <= N; i++) {
+    if (alive[i]) {
+      anyAlive = true;
+      let isPlayer = pla.has(i);
+      html += `<span class="civ-item${isPlayer ? ' god-item' : ''}">文明${i}(${civs[i].level}级,击杀${civs[i].kill})${isPlayer ? ' 👑' : ''}</span> `;
+    }
+  }
+  if (!anyAlive) html += '全军覆没';
+  html += '</div></div>';
+
+  // 第 374-376 行: 存活玩家
+  html += '<div class="end-section"><h3>存活玩家</h3><div class="content">';
+  if (pla.size === 0) html += '无';
+  else for (const [civId, pNum] of pla) html += `<span class="civ-item god-item">玩家${pNum}(文明${civId})</span> `;
+  html += '</div></div>';
+
+  // 第 377-379 行: 埋葬在深渊中的文明
+  html += '<div class="end-section"><h3>🕳️ 埋葬在宇宙深渊中的文明</h3><div class="content">';
+  let abyssBattles = battle.get(0) || [];
+  if (abyssBattles.length === 0) html += '无';
+  else abyssBattles.forEach(b => html += `<span class="civ-item">文明${b[0]} 与 文明${b[1]}</span> `);
+  html += '</div></div>';
+
+  // 第 380-391 行: 遗迹战场
+  html += '<div class="end-section"><h3>⚔️ 遗迹战场</h3><div class="content">';
+  let bfCount = 0;
+  for (const [pos, pairs] of battle) {
+    if (pos === 0) continue;
+    bfCount++;
+    html += `<div style="margin:4px 0"><span class="civ-item" style="border-left-color:var(--orange)">${pos}号空间</span> 埋葬${pairs.length}对文明: `;
+    pairs.forEach(p => html += `文明${p[0]}与文明${p[1]} `);
+    html += '</div>';
+  }
+  if (bfCount === 0) html += '无';
+  html += '</div></div>';
+
+  results.innerHTML = html;
+}
+
+// ================================================================
+//  画面切换
+// ================================================================
+
+function showScreen(screenId) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(screenId).classList.add('active');
+}
+
+// ================================================================
+//  星空背景
+// ================================================================
+
+function createStarfield() {
+  const container = document.getElementById('starfield');
+  for (let i = 0; i < 120; i++) {
+    const star = document.createElement('div');
+    star.className = 'star';
+    star.style.left = Math.random() * 100 + '%';
+    star.style.top = Math.random() * 100 + '%';
+    star.style.animationDelay = Math.random() * 5 + 's';
+    star.style.animationDuration = (2 + Math.random() * 4) + 's';
+    if (Math.random() > 0.8) {
+      star.style.width = '3px';
+      star.style.height = '3px';
+    }
+    container.appendChild(star);
+  }
+}
+
+// ================================================================
+//  游戏启动 — 对照 C++ main() 流程
+// ================================================================
+
+async function startGame() {
+  let numPlayers = parseInt(document.querySelector('.player-btn.selected').dataset.players);
+
+  showScreen('gameScreen');
+  document.getElementById('gameLog').innerHTML = '';
+
+  log('正在创造宇宙...', 'system');
+
+  initGame(numPlayers);                    // 对照 C++ main() 第 200-227 行
+
+  await delay(800);
+  log('创造完成！600个文明已诞生', 'system');
+
+  // 显示玩家信息
+  for (const [civId, pNum] of pla) {
+    log(`玩家${pNum} -> 文明#${civId} (Lv1, 生命${Math.floor(civs[civId].wei)}, 科技${civs[civId].tec.toFixed(2)})`, 'player');
+  }
+
+  await delay(600);
+
+  // 对照 C++ 第 238-244 行: 最后通牒弹窗
+  const modal = document.getElementById('modal');
+  modal.classList.add('active');
+
+  return new Promise(resolve => {
+    document.getElementById('modalOkBtn').onclick = () => {
+      modal.classList.remove('active');
+      resolve(true);
+    };
+    document.getElementById('modalCancelBtn').onclick = () => {
+      modal.classList.remove('active');
+      log('懦夫不配加入勇敢者的宇宙！', 'system');
+      showScreen('startScreen');
+      resolve(false);
+    };
+  }).then(async (proceed) => {
+    if (!proceed) return;
+    // 对照 C++ 第 233 行
+    log('顶级黑暗森林大逃杀游戏，现在开始！', 'system');
+    await delay(500);
+    updateHeader();
+    updateStats();
+    await gameLoop();
+  });
+}
+
+// ================================================================
+//  事件绑定
+// ================================================================
+
+function bindEvents() {
+  // 玩家数量选择
+  document.querySelectorAll('.player-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.player-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    };
+  });
+
+  // 开始按钮
+  document.getElementById('startBtn').onclick = startGame;
+
+  // 重新开始
+  document.getElementById('restartBtn').onclick = () => {
+    showScreen('startScreen');
+  };
+
+  // 速度控制
+  document.querySelectorAll('.speed-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      gameSpeed = btn.dataset.speed;
+    };
+  });
+
+  // 日志过滤
+  document.querySelectorAll('.log-filter-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.log-filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      logFilter = btn.dataset.filter;
+      applyAllLogFilters();
+    };
+  });
+
+  // 深渊输入框回车
+  document.getElementById('abyssInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      document.getElementById('abyssConfirmBtn').click();
+    }
+  });
+
+  // Canvas 事件
+  initCanvasEvents();
+}
+
+// ================================================================
+//  初始化
+// ================================================================
+
+createStarfield();
+bindEvents();
+</script>
+</body>
+</html>
