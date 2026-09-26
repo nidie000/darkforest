@@ -111,13 +111,13 @@ int war(int x, int y)
 		a[w].wei -= damage(l, w)*a[l].wei;
 		if (a[w].wei <= die[a[w].level])
 		{
-			cout << "æ–‡æ˜Ž" << w << "ä¸Žæ–‡æ˜Ž" << l << "åŒå½’äºŽå°½ï¼\n";
+			cout << "ÎÄÃ÷" << w << "ÓëÎÄÃ÷" << l << "Í¬¹éÓÚ¾¡£¡\n";
 			a[l].kill++;
 			dead(w);
 //Sleep(200);
 			return -2;
 		}
-		cout << "é«˜ç»´æ–‡æ˜Ž" << w << "æŠ¹æ€äº†ä½Žç»´æ–‡æ˜Ž" << l << "!\n";
+		cout << "¸ßÎ¬ÎÄÃ÷" << w << "Ä¨É±ÁËµÍÎ¬ÎÄÃ÷" << l << "!\n";
 //Sleep(200);
 		return (w==x ? 1 : 2);
 	}
@@ -135,7 +135,7 @@ int war(int x, int y)
 		a[w].neword -= damage2(l, w);
 		if (isnan(a[x].wei) || isnan(a[y].wei) || isnan(a[x].neword) || isnan(a[y].neword))
 		{
-			cout << "æ–‡æ˜Ž" << x << "ä¸Žæ–‡æ˜Ž" << y << "çš„æˆ˜æ–—é€ æˆæ³•åˆ™åå¡Œï¼ŒåŒåŒé™¨è½ï¼\n";
+			cout << "ÎÄÃ÷" << x << "ÓëÎÄÃ÷" << y << "µÄÕ½¶·Ôì³É·¨ÔòÌ®Ëú£¬Ë«Ë«ÔÉÂä£¡\n";
 			dead(x);
 			dead(y);
 //Sleep(200);
@@ -146,32 +146,32 @@ int war(int x, int y)
 			dead(x);
 			if (a[y].wei < die[lev])
 			{
-				cout << "æ–‡æ˜Ž" << x << "ä¸Žæ–‡æ˜Ž" << y << "åŒå½’äºŽå°½ï¼\n";
+				cout << "ÎÄÃ÷" << x << "ÓëÎÄÃ÷" << y << "Í¬¹éÓÚ¾¡£¡\n";
 				dead(y);
 //Sleep(200);
 				return -2;
 			}
-			cout << "æ–‡æ˜Ž" << y << "æŠ¹æ€äº†æ–‡æ˜Ž" << x << "ï¼\n";
+			cout << "ÎÄÃ÷" << y << "Ä¨É±ÁËÎÄÃ÷" << x << "£¡\n";
 //Sleep(200);
 			return 2;
 		}
 		if (a[y].wei < die[lev])
 		{
-			cout << "æ–‡æ˜Ž" << x << "æŠ¹æ€äº†æ–‡æ˜Ž" << y << "ï¼\n";
+			cout << "ÎÄÃ÷" << x << "Ä¨É±ÁËÎÄÃ÷" << y << "£¡\n";
 			dead(y);
 //Sleep(200);
 			return 1;
 		}
 		if (a[x].neword < a[x].ord*r(20)*0.01)
 		{
-			cout << "æ–‡æ˜Ž" << x << "åœ¨ä¸Žæ–‡æ˜Ž" << y << "çš„æˆ˜æ–—ä¸­å› å†…ä¹±è€Œæ¯ç­ï¼\n";
+			cout << "ÎÄÃ÷" << x << "ÔÚÓëÎÄÃ÷" << y << "µÄÕ½¶·ÖÐÒòÄÚÂÒ¶ø»ÙÃð£¡\n";
 			dead(x);
 //Sleep(200);
 			return 2;
 		}
 		if (a[y].neword < a[y].ord*r(36)*0.01)
 		{
-			cout << "æ–‡æ˜Ž" << y << "åœ¨ä¸Žæ–‡æ˜Ž" << x << "çš„æˆ˜æ–—ä¸­å› å†…ä¹±è€Œæ¯ç­ï¼\n";
+			cout << "ÎÄÃ÷" << y << "ÔÚÓëÎÄÃ÷" << x << "µÄÕ½¶·ÖÐÒòÄÚÂÒ¶ø»ÙÃð£¡\n";
 			dead(y);
 //Sleep(200);
 			return 1;
@@ -200,13 +200,13 @@ int main()
 		vis[a[i].dir] = i;
 	}
 	battle[0];
-	cout << "é¡¶çº§é»‘æš—æ£®æž—å¤§é€ƒæ€æ¸¸æˆï¼ŒçŽ°åœ¨å¼€å§‹ï¼\n";
+	cout << "¶¥¼¶ºÚ°µÉ­ÁÖ´óÌÓÉ±ÓÎÏ·£¬ÏÖÔÚ¿ªÊ¼£¡\n";
 	Sleep(3000);
 	for (int k = 1; k <= T; k++)
 	{
 		//system("cls");
 		init(countciv*kcd, countciv*kcd*r(3));
-		cout << "\nç¬¬" << k << "å›žåˆï¼š\n";
+		cout << "\nµÚ" << k << "»ØºÏ£º\n";
 		//Sleep(500);
 		for (int i = 1; i <= /*(countciv+2)/3*/N; i++)
 		{
@@ -280,52 +280,52 @@ int main()
 				a[i].neword += a[i].level*r(3)*0.01;
 				a[i].wei *= a[i].level;
 				a[i].shield += sqrt(a[i].wei);
-				cout << "æ­å–œæ–‡æ˜Ž" << i << "æˆä¸º" << a[i].level << "çº§æ–‡æ˜Ž\n";
+				cout << "¹§Ï²ÎÄÃ÷" << i << "³ÉÎª" << a[i].level << "¼¶ÎÄÃ÷\n";
 //Sleep(200);
 			}
 			if (a[i].level==11 && a[i].kill>12 && r(5) == 2)
 			{
 				dead(i);
 				god.push_back(i);
-				cout << "ã€ä¸–ç•Œå¹¿æ’­ã€‘æ–‡æ˜Ž" << i << "æˆä¸ºç¥žæ˜Ž\n";
+				cout << "¡¾ÊÀ½ç¹ã²¥¡¿ÎÄÃ÷" << i << "³ÉÎªÉñÃ÷\n";
 //Sleep(200);
 			}
 		}
-		cout << "å‰©ä½™æ–‡æ˜Žæ•°é‡ï¼š" << countciv << '\n';
+		cout << "Ê£ÓàÎÄÃ÷ÊýÁ¿£º" << countciv << '\n';
 		//Sleep(1800);
 		//system("pause");
 		if (countciv <= 1) break;
 	}
-	cout << "\næ¸¸æˆç»“æŸï¼\n";
+	cout << "\nÓÎÏ·½áÊø£¡\n";
 	//Sleep(2000);
-	cout << "ç¥žçº§æ–‡æ˜Žï¼š";
+	cout << "Éñ¼¶ÎÄÃ÷£º";
 	for (auto i : god) cout << i << ' ';
-	if (god.empty()) cout << "æ— ";
+	if (god.empty()) cout << "ÎÞ";
 	cout << '\n';
 	//Sleep(1000);
-	cout << "å¹¸å­˜å‡¡çº§æ–‡æ˜Žï¼š";
+	cout << "ÐÒ´æ·²¼¶ÎÄÃ÷£º";
 	bool op = 1;
 	for (int i = 1; i <= N; i++)
 	{
 		if (alive[i])
 		{
 			op = 0;
-			cout << i << "(" << a[i].level << "çº§ï¼Œå‡»æ€" << a[i].kill << ") ";
+			cout << i << "(" << a[i].level << "¼¶£¬»÷É±" << a[i].kill << ") ";
 		}
 	}
-	if (op) cout << "å…¨å†›è¦†æ²¡ï¼";
-	cout << "\nåŸ‹è‘¬åœ¨å®‡å®™æ·±æ¸Šçš„æ–‡æ˜Žï¼š\n";
-	if (battle[0].empty()) cout << "æ— ";
-	else for (const auto& i : battle[0]) cout << i.first << "ä¸Ž" << i.second << ' ';
-	cout << "\né—è¿¹æˆ˜åœºï¼š\n";
-	if (battle.size() == 1) cout << "æ— ";
+	if (op) cout << "È«¾ü¸²Ã»£¡";
+	cout << "\nÂñÔáÔÚÓîÖæÉîÔ¨µÄÎÄÃ÷£º\n";
+	if (battle[0].empty()) cout << "ÎÞ";
+	else for (const auto& i : battle[0]) cout << i.first << "Óë" << i.second << ' ';
+	cout << "\nÒÅ¼£Õ½³¡£º\n";
+	if (battle.size() == 1) cout << "ÎÞ";
 	else
 	{
 		for (const auto& i : battle)
 		{
 			if (i.first == 0) continue;
-			cout << i.first << "å·ç©ºé—´å…±åŸ‹è‘¬äº†" << i.second.size() << "å¯¹æ–‡æ˜Žï¼š";
-			for (const auto& j : i.second) cout << "æ–‡æ˜Ž" << j.first << "ä¸Žæ–‡æ˜Ž" << j.second << ' ';
+			cout << i.first << "ºÅ¿Õ¼ä¹²ÂñÔáÁË" << i.second.size() << "¶ÔÎÄÃ÷£º";
+			for (const auto& j : i.second) cout << "ÎÄÃ÷" << j.first << "ÓëÎÄÃ÷" << j.second << ' ';
 			cout << '\n';
 		}
 	}
